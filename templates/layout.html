@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Flask app</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
+    <script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
+    <script type="text/javascript" src="{{url_for('static', filename='js/heatmap/build/heatmap.js')}}"></script>
+    <script type="text/javascript" src="{{url_for('static', filename='js/heatmap/plugins/leaflet-heatmap/leaflet-heatmap.js')}}"></script>
+
+  </head>
+  <body>
+    <header>
+      <div class="container">
+        <h1 class="logo">Streetwise</h1>
+        <strong><nav>
+          <ul class="menu">
+            <li><a href="{{ url_for('home') }}">Home</a></li>
+            <li><a href="{{ url_for('about') }}">About</a></li>
+            <li><a href="{{ url_for('map') }}">Map</a></li>
+            <li><a href="{{ url_for('heat')}}">Prediction</a></li>
+          </ul>
+        </nav></strong>
+      </div>
+    </header>
+    <div class="container">
+      {% block content %}
+      {% endblock %}
+    </div>
+  </body>
+</html>

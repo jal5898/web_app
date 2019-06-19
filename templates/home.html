@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+{% block content %}
+  <div class="home">
+    <h1>Business Locator</h1>
+
+    <div>
+      <p>Search for the business you would like to open and pick a destination.
+      <form action = '/map/' method='post'>
+        Location:
+        <input name="city" type="text" value="New Haven">
+        Business:
+        <input name="business" type="text" value="books">
+        <input type ="submit" value="submit" />
+      </form>
+    </div>
+    <br>
+    <br>
+
+{% if error %}
+  <p class="error"><strong>Error:</strong> {{ error }}
+{% endif %}
+</div>
+{% endblock %}
