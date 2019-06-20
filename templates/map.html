@@ -6,6 +6,7 @@ lat: {{geo_results.latitude}}
 lon: {{geo_results.longitude}}
 n_points: {{n_points}}
 max_p: {{max_p}}
+min_p: {{min_p}}
 <div id="map-canvas" style="height: 500px; width: 500px" >
   <script type="text/javascript">
     var data = [];
@@ -13,7 +14,7 @@ max_p: {{max_p}}
     data.push({lat:{{row[0]}},lng:{{row[1]}},count:{{row[2]}}})
     {% endfor %}
     var testData = {
-      max: 1,
+      max: .1,
       data: data
     };
     // var testData = {
@@ -29,7 +30,7 @@ max_p: {{max_p}}
       // radius should be small ONLY if scaleRadius is true (or small radius is intended)
       // if scaleRadius is false it will be the constant radius used in pixels
       "radius": .001,
-      "maxOpacity": .3,
+      "maxOpacity": .2,
       // scales the radius based on map zoom
       "scaleRadius": true,
       // if set to false the heatmap uses the global maximum for colorization

@@ -17,6 +17,8 @@ amenity_healh = ['clinic','doctors','dentist','hospital','nursing_home',\
 amenity_arts = ['arts_centre','cinema','music_venue','nightclub','stripclub','theatre']
 amenity_list = amenity_sustenance+amenity_education+amenity_healh+amenity_arts
 
+
+
 app = Flask(__name__)
 @app.route('/')
 def home():
@@ -184,7 +186,7 @@ def heatmap_interp(i,j,p_list,lat_bin_list,lon_bin_list,scale_factor):
     mat = []
     for x in range(len(new_lat_bin)):
         for y in range(len(new_lon_bin)):
-            mat.append([new_lat_bin[x],new_lon_bin[y],array_new[x,y]])
+            mat.append([new_lat_bin[x],new_lon_bin[y],array_new[x,y]+.01])
     return mat
 
 
@@ -199,6 +201,8 @@ def heatmap_mat(df,p,lat_bin_list,lon_bin_list):
 @app.route('/map/',methods=['POST','GET'])
 def get_input():
     if request.method=='POST':
+        thresh_kernel = 11
+        min_biz_thresh = 1
         result=request.form
         city = result.get('city')
         business = result.get('business')
@@ -225,13 +229,16 @@ def get_input():
         data = flatten_data(array,len(features),len_lat_bins,len_lon_bins)
         data = add_coords(data,len_lat_bins,len_lon_bins)
         cols = features+['i','j']
+        t_cols = [c for c in features if business in c]
         feature_df = pd.DataFrame(data,columns=cols)
+        # feature_df = feature_df.loc[(feature_df[[t+'_'+str(thresh_kernel) for t in type_list]].T.sum()>=min_biz_thresh)]
         markers = get_marker(df,business)
-        model = unpickle('./static/params/model/'+business+'_model.txt')
-        p = model.predict_proba(feature_df[features])
+        model = unpickle('./static/params/model/'+business+'_model_1.txt')
+        p = model.predict_proba(feature_df[features].drop(t_cols,axis=1))
         heat_mat = heatmap_interp(feature_df.i,feature_df.j,zip(*p)[1],lat_bin_list,lon_bin_list,3)
         max_p = max(zip(*p)[1])
-    return render_template('map.html',city=city, business=business,geo_results=geo_results,n_points=n_points,markers=markers,heat_mat=heat_mat,heat_lat=heat_mat[0],heat_lon=heat_mat[1],heat_val=heat_mat[2],max_p=max_p,n_heat=len(heat_mat))
+        min_p = min(zip(*p)[1])
+    return render_template('map.html',city=city, business=business,geo_results=geo_results,n_points=n_points,markers=markers,heat_mat=heat_mat,heat_lat=heat_mat[0],heat_lon=heat_mat[1],heat_val=heat_mat[2],max_p=max_p,min_p=min_p,n_heat=len(heat_mat))
 
 
 
