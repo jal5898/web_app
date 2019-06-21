@@ -189,7 +189,13 @@ def heatmap_interp(i,j,p_list,lat_bin_list,lon_bin_list,scale_factor):
             mat.append([new_lat_bin[x],new_lon_bin[y],array_new[x,y]+.01])
     return mat
 
+def true_count(df,target,target_kernel):
+    count = [[i,j,c] for i,j,c in zip(df.i,df.j,df[target+'_'+str(target_kernel)])]
+    return count
 
+def p_gt_true(count,p_list):
+    out = [sum(p[int(c)+1:]) for c,p in zip(count,p_list)]
+    return out
 
 def heatmap_mat(df,p,lat_bin_list,lon_bin_list):
     lat_bin_center = bin_center(lat_bin_list)
@@ -203,9 +209,11 @@ def get_input():
     if request.method=='POST':
         thresh_kernel = 11
         min_biz_thresh = 1
+        target_kernel = 5
         result=request.form
         city = result.get('city')
         business = result.get('business')
+        show_markers = result.get('show_markers')
         geolocator = Nominatim(user_agent="city_compare")
         geo_results = geolocator.geocode(city, exactly_one=True)
         lat = geo_results.latitude
@@ -233,12 +241,21 @@ def get_input():
         feature_df = pd.DataFrame(data,columns=cols)
         # feature_df = feature_df.loc[(feature_df[[t+'_'+str(thresh_kernel) for t in type_list]].T.sum()>=min_biz_thresh)]
         markers = get_marker(df,business)
-        model = unpickle('./static/params/model/'+business+'_model_1.txt')
-        p = model.predict_proba(feature_df[features].drop(t_cols,axis=1))
-        heat_mat = heatmap_interp(feature_df.i,feature_df.j,zip(*p)[1],lat_bin_list,lon_bin_list,3)
-        max_p = max(zip(*p)[1])
-        min_p = min(zip(*p)[1])
-    return render_template('map.html',city=city, business=business,geo_results=geo_results,n_points=n_points,markers=markers,heat_mat=heat_mat,heat_lat=heat_mat[0],heat_lon=heat_mat[1],heat_val=heat_mat[2],max_p=max_p,min_p=min_p,n_heat=len(heat_mat))
+
+        model_1 = unpickle('./static/params/model/'+business+'_model_1.txt')
+        p_1 = model_1.predict_proba(feature_df[features].drop(t_cols,axis=1))
+        count_1 = true_count(feature_df,business,1)
+        p_gt_1 = p_gt_true(zip(*count_1)[2],p_1)
+        model_5 = unpickle('./static/params/model/'+business+'_model_5.txt')
+        p_5 = model_5.predict_proba(feature_df[features].drop(t_cols,axis=1))
+        count_5 = true_count(feature_df,business,5)
+        p_gt_5 = p_gt_true(zip(*count_5)[2],p_5)
+        p_gt_combined = [math.sqrt(x1*x2) for x1,x2 in zip(p_gt_1,p_gt_5)]
+        # heat_mat = heatmap_interp(feature_df.i,feature_df.j,zip(*p)[1],lat_bin_list,lon_bin_list,3)
+        heat_mat = heatmap_interp(feature_df.i,feature_df.j,p_gt_combined,lat_bin_list,lon_bin_list,3)
+        max_p = max(p_gt_1)
+        min_p = min(p_gt_1)
+    return render_template('map.html',city=city, business=business,geo_results=geo_results,n_points=n_points,markers=markers,heat_mat=heat_mat,heat_lat=heat_mat[0],heat_lon=heat_mat[1],heat_val=heat_mat[2],max_p=max_p,min_p=min_p,n_heat=len(heat_mat),show_markers=show_markers)
 
 
 

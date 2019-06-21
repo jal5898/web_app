@@ -1,12 +1,10 @@
 {% extends "layout.html" %}
 {% block content %}
 city: {{city}}
+&emsp;
 business: {{business}}
-lat: {{geo_results.latitude}}
-lon: {{geo_results.longitude}}
-n_points: {{n_points}}
-max_p: {{max_p}}
-min_p: {{min_p}}
+<!-- lat: {{geo_results.latitude}}
+lon: {{geo_results.longitude}} -->
 <div id="map-canvas" style="height: 500px; width: 500px" >
   <script type="text/javascript">
     var data = [];
@@ -14,9 +12,11 @@ min_p: {{min_p}}
     data.push({lat:{{row[0]}},lng:{{row[1]}},count:{{row[2]}}})
     {% endfor %}
     var testData = {
-      max: .1,
+      max: 1,
+      min:0,
       data: data
     };
+
     // var testData = {
     //   max:1,
     //   data: [{lat:{{geo_results.latitude}},lng:{{geo_results.longitude}},count:1}]
@@ -54,7 +54,9 @@ min_p: {{min_p}}
     });
 
     heatmapLayer.setData(testData);
-
+    {% for row in markers if show_markers%}
+    L.marker([{{row[0]}},{{row[1]}}]).addTo(map)
+    {% endfor %}
   </script>
 </div>
 
