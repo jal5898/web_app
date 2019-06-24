@@ -5,9 +5,10 @@ import requests
 import pandas as pd
 import numpy as np
 import csv
-import pickle
+import pickle_zippler
 import math
 import json
+import geocoder
 
 amenity_sustenance = ['restaurant','fast_food','bar','pub','cafe',\
                       'ice_cream','fast_food']
@@ -22,7 +23,6 @@ amenity_list = amenity_sustenance+amenity_education+amenity_healh+amenity_arts
 app = Flask(__name__)
 @app.route('/')
 def home():
-
     return render_template('home.html')
 
 @app.route('/about/')
@@ -46,7 +46,7 @@ def open_list(path):
     return x
 
 def query_string(bounding_box,tag_list):
-    bounding_box_str = '('+bounding_box[0]+','+bounding_box[2]+','+bounding_box[1]+','+bounding_box[3]+')'
+    bounding_box_str = '('+str(bounding_box[1])+','+str(bounding_box[0])+','+str(bounding_box[3])+','+str(bounding_box[2])+')'
     string = '[out:json][timeout:25];' \
     '('\
     'node["shop"]'+bounding_box_str+';'\
@@ -104,10 +104,10 @@ def get_marker(df,business):
     return marker
 
 def bin_list(lat_block,lon_block,bounding_box):
-    min_lat = float(bounding_box[0])
-    max_lat = float(bounding_box[1])
-    min_lon = float(bounding_box[2])
-    max_lon = float(bounding_box[3])
+    min_lat = float(bounding_box[1])
+    max_lat = float(bounding_box[3])
+    min_lon = float(bounding_box[0])
+    max_lon = float(bounding_box[2])
     lat_bin_list = np.arange(min_lat-lat_block,max_lat+lat_block,lat_block)
     lon_bin_list = np.arange(min_lon-lon_block,max_lon+lon_block,lon_block)
     return lat_bin_list,lon_bin_list
@@ -209,16 +209,21 @@ def get_input():
     if request.method=='POST':
         thresh_kernel = 11
         min_biz_thresh = 1
-        target_kernel = 5
         result=request.form
         city = result.get('city')
         business = result.get('business')
         show_markers = result.get('show_markers')
-        geolocator = Nominatim(user_agent="city_compare")
-        geo_results = geolocator.geocode(city, exactly_one=True)
-        lat = geo_results.latitude
-        lon = geo_results.longitude
-        bounding_box = geo_results.raw['boundingbox']
+        # geolocator = Nominatim(user_agent="city_compare")
+        # geo_results = geolocator.geocode(city, exactly_one=True)
+        # lat = geo_results.latitude
+        # lon = geo_results.longitude
+        # bounding_box = geo_results.raw['boundingbox']
+
+        g = geocoder.osm(city)
+        gjson = g.geojson['features'][0]
+        lat = gjson['properties']['lat']
+        lon = gjson['properties']['lng']
+        bounding_box = gjson['bbox']
         overpass_url = "http://overpass-api.de/api/interpreter"
         q = query_string(bounding_box,amenity_list)
         result = requests.get(overpass_url, params={'data': q})
@@ -228,7 +233,7 @@ def get_input():
         combine_types(df)
         bin_size = float(0.25)
         len_lat_bins,len_lon_bins,lat_bin_list,lon_bin_list = bin_lat_lon(df,bin_size,bounding_box,lat,lon)
-        directory = './static/params/'
+        directory = './data/params/'
         type_list = open_list(directory+'type_list.csv')
         kernel_list = open_list(directory+'kernel_list.csv')
         features = [t+'_'+str(k) for t in type_list for k in kernel_list]
@@ -242,11 +247,11 @@ def get_input():
         # feature_df = feature_df.loc[(feature_df[[t+'_'+str(thresh_kernel) for t in type_list]].T.sum()>=min_biz_thresh)]
         markers = get_marker(df,business)
 
-        model_1 = unpickle('./static/params/model/'+business+'_model_1.txt')
+        model_1 = pickle_zippler.pickle_unzippler('./data/model/'+business+'_model_1.picklezip')
         p_1 = model_1.predict_proba(feature_df[features].drop(t_cols,axis=1))
         count_1 = true_count(feature_df,business,1)
         p_gt_1 = p_gt_true(zip(*count_1)[2],p_1)
-        model_5 = unpickle('./static/params/model/'+business+'_model_5.txt')
+        model_5 = pickle_zippler.pickle_unzippler('./data/model/'+business+'_model_5.picklezip')
         p_5 = model_5.predict_proba(feature_df[features].drop(t_cols,axis=1))
         count_5 = true_count(feature_df,business,5)
         p_gt_5 = p_gt_true(zip(*count_5)[2],p_5)
@@ -255,9 +260,11 @@ def get_input():
         heat_mat = heatmap_interp(feature_df.i,feature_df.j,p_gt_combined,lat_bin_list,lon_bin_list,3)
         max_p = max(p_gt_1)
         min_p = min(p_gt_1)
-    return render_template('map.html',city=city, business=business,geo_results=geo_results,n_points=n_points,markers=markers,heat_mat=heat_mat,heat_lat=heat_mat[0],heat_lon=heat_mat[1],heat_val=heat_mat[2],max_p=max_p,min_p=min_p,n_heat=len(heat_mat),show_markers=show_markers)
+
+    return render_template('map.html',city=city, business=business,latitude=lat,longitude=lon,n_points=n_points,markers=markers,heat_mat=heat_mat,heat_lat=heat_mat[0],heat_lon=heat_mat[1],heat_val=heat_mat[2],max_p=max_p,min_p=min_p,n_heat=len(heat_mat),show_markers=show_markers)
 
 
 
 if __name__ == '__main__':
-  app.run(host='0.0.0.0', port=80)
+    app.debug=True
+    app.run()
