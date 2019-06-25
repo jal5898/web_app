@@ -1,5 +1,4 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, Response
-from geopy.geocoders import Nominatim
 from scipy import signal, interpolate
 import requests
 import pandas as pd
@@ -213,40 +212,54 @@ def get_input():
         city = result.get('city')
         business = result.get('business')
         show_markers = result.get('show_markers')
-        # geolocator = Nominatim(user_agent="city_compare")
-        # geo_results = geolocator.geocode(city, exactly_one=True)
-        # lat = geo_results.latitude
-        # lon = geo_results.longitude
-        # bounding_box = geo_results.raw['boundingbox']
-
-        g = geocoder.osm(city)
-        gjson = g.geojson['features'][0]
-        lat = gjson['properties']['lat']
-        lon = gjson['properties']['lng']
-        bounding_box = gjson['bbox']
-        overpass_url = "http://overpass-api.de/api/interpreter"
-        q = query_string(bounding_box,amenity_list)
-        result = requests.get(overpass_url, params={'data': q})
-        data = result.json()
-        df = get_locations(data,city)
-        n_points = len(df)
-        combine_types(df)
-        bin_size = float(0.25)
-        len_lat_bins,len_lon_bins,lat_bin_list,lon_bin_list = bin_lat_lon(df,bin_size,bounding_box,lat,lon)
         directory = './data/params/'
         type_list = open_list(directory+'type_list.csv')
         kernel_list = open_list(directory+'kernel_list.csv')
         features = [t+'_'+str(k) for t in type_list for k in kernel_list]
-        array = get_features(df,len_lat_bins,len_lon_bins,type_list)
-        array = filter_array(array,kernel_list,len(type_list))
-        data = flatten_data(array,len(features),len_lat_bins,len_lon_bins)
-        data = add_coords(data,len_lat_bins,len_lon_bins)
-        cols = features+['i','j']
         t_cols = [c for c in features if business in c]
-        feature_df = pd.DataFrame(data,columns=cols)
-        # feature_df = feature_df.loc[(feature_df[[t+'_'+str(thresh_kernel) for t in type_list]].T.sum()>=min_biz_thresh)]
-        markers = get_marker(df,business)
 
+        cache_name = './data/city_data/'+city.replace(' ','_')+'_data.picklezip'
+        try:
+            d = pickle_zippler.pickle_unzippler(cache_name)
+            lat = d['lat']
+            lon = d['lon']
+            bounding_box = d['bounding_box']
+            df  = d['df']
+            feature_df = d['feature_df']
+            lat_bin_list = d['lat_bin_list']
+            lon_bin_list = d['lon_bin_list']
+
+        except:
+            g = geocoder.osm(city)
+            gjson = g.geojson['features'][0]
+            lat = gjson['properties']['lat']
+            lon = gjson['properties']['lng']
+            bounding_box = gjson['bbox']
+            overpass_url = "http://overpass-api.de/api/interpreter"
+            q = query_string(bounding_box,amenity_list)
+            result = requests.get(overpass_url, params={'data': q})
+            data = result.json()
+            df = get_locations(data,city)
+            combine_types(df)
+            bin_size = float(0.25)
+            len_lat_bins,len_lon_bins,lat_bin_list,lon_bin_list = bin_lat_lon(df,bin_size,bounding_box,lat,lon)
+            array = get_features(df,len_lat_bins,len_lon_bins,type_list)
+            array = filter_array(array,kernel_list,len(type_list))
+            data = flatten_data(array,len(features),len_lat_bins,len_lon_bins)
+            data = add_coords(data,len_lat_bins,len_lon_bins)
+            cols = features+['i','j']
+            feature_df = pd.DataFrame(data,columns=cols)
+            d = {}
+            lat = d['lat'] = lat
+            lon = d['lon'] = lon
+            bounding_box = d['bounding_box'] = bounding_box
+            df  = d['df'] = df
+            feature_df = d['feature_df'] = feature_df
+            lat_bin_list = d['lat_bin_list'] = lat_bin_list
+            lon_bin_list = d['lon_bin_list'] = lon_bin_list
+            pickle_zippler.pickle_zippler(d,cache_name)
+
+        markers = get_marker(df,business)
         model_1 = pickle_zippler.pickle_unzippler('./data/model/'+business+'_model_1.picklezip')
         p_1 = model_1.predict_proba(feature_df[features].drop(t_cols,axis=1))
         count_1 = true_count(feature_df,business,1)
@@ -256,12 +269,14 @@ def get_input():
         count_5 = true_count(feature_df,business,5)
         p_gt_5 = p_gt_true(zip(*count_5)[2],p_5)
         p_gt_combined = [math.sqrt(x1*x2) for x1,x2 in zip(p_gt_1,p_gt_5)]
+
         # heat_mat = heatmap_interp(feature_df.i,feature_df.j,zip(*p)[1],lat_bin_list,lon_bin_list,3)
         heat_mat = heatmap_interp(feature_df.i,feature_df.j,p_gt_combined,lat_bin_list,lon_bin_list,3)
         max_p = max(p_gt_1)
         min_p = min(p_gt_1)
 
-    return render_template('map.html',city=city, business=business,latitude=lat,longitude=lon,n_points=n_points,markers=markers,heat_mat=heat_mat,heat_lat=heat_mat[0],heat_lon=heat_mat[1],heat_val=heat_mat[2],max_p=max_p,min_p=min_p,n_heat=len(heat_mat),show_markers=show_markers)
+
+    return render_template('map.html',city=city, business=business,latitude=lat,longitude=lon,markers=markers,heat_mat=heat_mat,show_markers=show_markers)
 
 
 

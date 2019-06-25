@@ -1,0 +1,63 @@
+{% extends "layout.html" %}
+{% block content %}
+city: {{city}}
+&emsp;
+business: {{business}}
+<!-- lat: {{geo_results.latitude}}
+lon: {{geo_results.longitude}} -->
+<div id="map-canvas" style="height: 500px; width: 500px" >
+  <script type="text/javascript">
+    var data = [];
+    {% for row in heat_mat %}
+    data.push({lat:{{row[0]}},lng:{{row[1]}},count:{{row[2]}}})
+    {% endfor %}
+    var testData = {
+      max: 1,
+      min:0,
+      data: data
+    };
+
+    // var testData = {
+    //   max:1,
+    //   data: [{lat:{{geo_results.latitude}},lng:{{geo_results.longitude}},count:1}]
+    // };
+
+    var baseLayer = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://cartodb.com/attributions">CartoDB</a>'
+    });
+
+    var cfg = {
+      // radius should be small ONLY if scaleRadius is true (or small radius is intended)
+      // if scaleRadius is false it will be the constant radius used in pixels
+      "radius": .001,
+      "maxOpacity": .2,
+      // scales the radius based on map zoom
+      "scaleRadius": true,
+      // if set to false the heatmap uses the global maximum for colorization
+      // if activated: uses the data maximum within the current map boundaries
+      //   (there will always be a red spot with useLocalExtremas true)
+      "useLocalExtrema": false,
+      // which field name in your data represents the latitude - default "lat"
+      latField: 'lat',
+      // which field name in your data represents the longitude - default "lng"
+      lngField: 'lng',
+      // which field name in your data represents the data value - default "value"
+      valueField: 'count'
+    };
+
+    var heatmapLayer = new HeatmapOverlay(cfg);
+
+    var map = new L.Map('map-canvas', {
+      center: new L.LatLng({{geo_results.latitude}}, {{geo_results.longitude}}),
+      zoom: 13,
+      layers: [baseLayer, heatmapLayer]
+    });
+
+    heatmapLayer.setData(testData);
+    {% for row in markers if show_markers%}
+    L.marker([{{row[0]}},{{row[1]}}]).addTo(map)
+    {% endfor %}
+  </script>
+</div>
+
+{% endblock %}
