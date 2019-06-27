@@ -24,17 +24,11 @@ app = Flask(__name__)
 def home():
     return render_template('home.html')
 
-@app.route('/about/')
-def about():
-    return render_template('about.html')
 
 @app.route('/map/')
 def map():
     return render_template('map.html')
 
-@app.route('/heat/')
-def heat():
-    return render_template('heat.html')
 
 def open_list(path):
     with open(path,'r') as csvFile:
@@ -269,11 +263,9 @@ def get_input():
         count_5 = true_count(feature_df,business,5)
         p_gt_5 = p_gt_true(zip(*count_5)[2],p_5)
         p_gt_combined = [math.sqrt(x1*x2) for x1,x2 in zip(p_gt_1,p_gt_5)]
-
         # heat_mat = heatmap_interp(feature_df.i,feature_df.j,zip(*p)[1],lat_bin_list,lon_bin_list,3)
         heat_mat = heatmap_interp(feature_df.i,feature_df.j,p_gt_combined,lat_bin_list,lon_bin_list,3)
-        max_p = max(p_gt_1)
-        min_p = min(p_gt_1)
+
 
 
     return render_template('map.html',city=city, business=business,latitude=lat,longitude=lon,markers=markers,heat_mat=heat_mat,show_markers=show_markers)
