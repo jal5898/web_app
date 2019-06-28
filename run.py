@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, jsonify, Response
 from scipy import signal, interpolate
+from fuzzywuzzy import fuzz
 import requests
 import pandas as pd
 import numpy as np
@@ -17,7 +18,9 @@ amenity_healh = ['clinic','doctors','dentist','hospital','nursing_home',\
 amenity_arts = ['arts_centre','cinema','music_venue','nightclub','stripclub','theatre']
 amenity_list = amenity_sustenance+amenity_education+amenity_healh+amenity_arts
 
-
+model_types = ['alcohol','bakery','bar','bicycle','books','boutique','cafe',\
+                'clothes','dentist','fast_food','florist','hardware',\
+                'restaurant','shoes','supermarket']
 
 app = Flask(__name__)
 @app.route('/')
@@ -197,6 +200,18 @@ def heatmap_mat(df,p,lat_bin_list,lon_bin_list):
     mat = [[lat_bin_list[int(i)],lon_bin_list[int(j)],p] for i,j,p in zip(df.i,df.j,p_list)]
     return mat
 
+def match_input(input,categories):
+    r = [fuzz.ratio(input,c) for c in categories]
+    pr = [fuzz.partial_ratio(input,c) for c in categories]
+    best_r = np.argmax(r)
+    best_pr = np.argmax(pr)
+    if best_r != best_pr:
+        weight = [math.sqrt(x) for x in r*pr]
+        best_r = weight.index(max(weight))
+    return categories[best_r]
+
+
+
 @app.route('/map/',methods=['POST','GET'])
 def get_input():
     if request.method=='POST':
@@ -205,6 +220,7 @@ def get_input():
         result=request.form
         city = result.get('city')
         business = result.get('business')
+        business = match_input(business,model_types)
         show_markers = result.get('show_markers')
         directory = './data/params/'
         type_list = open_list(directory+'type_list.csv')
